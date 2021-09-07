@@ -1,5 +1,6 @@
 import requests
 import urllib
+import csv
 from bs4 import BeautifulSoup
 # from requests_html import HTML
 from requests_html import HTMLSession
@@ -8,10 +9,12 @@ from requests_html import HTMLSession
 # headers = {'user_agent': USER_AGENT}
 
 keywords = []
+dict_list = []
 
 class googleScrape:
-	def __init__(self):
-		self.keywords = []
+	def __init__(self, dict_list):
+		self.dict_list = dict_list
+		self.keywords = keywords
 
 	def open_keywords(self):
 		with open('keywords.txt', 'r', encoding='utf8') as file:
@@ -25,30 +28,36 @@ class googleScrape:
 		print(response)
 		return response
 
-	# def scrape_urls(self, query):
-	# 	response = self.get_site(self.URL)
-	# 	links = list(response.html.absolute_links)
-	# 	return links
-
-	def make_soup(self, query):
+	def make_soup(self, url):
 		response = self.get_html(self.URL)
 		soup = BeautifulSoup(response.text, 'html.parser')
-		for div in soup.find_all('div', class_='yuRUbf'):
-			link = div.select('a', href=True)
-			print(link[0]['href'])
-			''' NEXT: LINKS TO BE SAVED IN A FILE'''
-		for div in soup.find_all('div', class_='LHJvCe'):
-			print(type(div.text))
-			print(div.text)
+		return soup
+
+	def get_data(self, key, pages):
+		for page in range(pages):
+			page += 1
+			self.URL = f"https://google.com/search?q=site:https://www.searchenginejournal.com/+{key}&start={page}"
+			soup = self.make_soup(self.URL)
+			links_list = []	
+			for div in soup.find_all('div', class_='yuRUbf'):
+				link = div.select('a', href=True)
+				#print(link[0]['href'])
+				links_list.append(link[0]['href'])
+			key_dict = {key:links_list}
+			dict_list.append(key_dict)
+			print(dict_list)
+				
+			for div in soup.find_all('div', class_='LHJvCe'):
+				#print(type(div.text))
+				print(f'{key}: {div.text}')
 
 	def main(self):
 		self.open_keywords()
-		#scrape_urls(URL)
-		for k in self.keywords:
-			self.URL = f"https://google.com/search?q=site:https://www.searchenginejournal.com/+{k}&start=1"
-			self.make_soup(self.URL)
+		pages = 2
+		for key in self.keywords:
+			self.get_data(key, pages)
 
-run = googleScrape() 
+run = googleScrape(dict_list) 
 
 if __name__ == '__main__':
 	run.main()
