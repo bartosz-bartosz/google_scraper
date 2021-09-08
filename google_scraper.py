@@ -1,7 +1,9 @@
 import requests
 import urllib
+import re
 import csv
 import time
+import unicodedata
 from bs4 import BeautifulSoup
 from requests_html import HTMLSession
 
@@ -9,6 +11,7 @@ keywords = []
 dict_list = []
 no_results_list = []
 pages_to_scrape = 5
+delay = 0
 
 class googleScrape:
 	def __init__(self, dict_list, no_results_list):
@@ -29,12 +32,14 @@ class googleScrape:
 			print('Response OK, data reached successfully.\n')
 			return response
 		else:
-			print("Too many tries. Saving data collected until now.")
-			if self.no_results_list == []:
-				print('No data to save.')
+			print("\nToo many tries. Saving data collected until now.\nTry again in a few minutes.If problem persists, set higher delay.\n")
+			if len(self.no_results_list) < 1:
+				print('\nNo data to save.')
+				exit()
 			else:
 				self.no_results_csv(self.no_results_list)
 				self.links_csv(self.dict_list)
+				exit()
  
 	def make_soup(self, url):
 		response = self.get_html(self.URL)
@@ -43,13 +48,13 @@ class googleScrape:
 
 	def no_results_csv(self, no_results_list):
 		print('\n')
-		# print('Number of results for all keywords:')
-		print(no_results_list)
+		print(type(no_results_list[0]))
 		no_results_file = 'no_results.csv'
 		with open(no_results_file, 'w', newline='') as resultsfile:
-			writer = csv.writer(resultsfile)
-			for dic in no_results_list:
-				writer.writerows(dic.items())
+			writer = csv.DictWriter(resultsfile, no_results_list[0].keys())
+			writer.writeheader()
+			writer.writerows(no_results_list)
+
 		print(f'Number of results for each keyword saved to {no_results_file}')
 
 	def links_csv(self, dict_list):
@@ -64,7 +69,7 @@ class googleScrape:
 						writer.writerow([key, item])
 		print(f'Links saved to {csv_file}')
 
-	def get_data(self, key, pages):
+	def get_data(self, key, pages, delay):
 		links_list = []
 		print('\n')
 		print(f'Getting data for keyword >>{key.upper()}<<')
@@ -79,27 +84,31 @@ class googleScrape:
 				else:
 					no_results = div.text
 					if no_results == '':
-						self.no_results_list.append({key:'No results for this query.'})
+						self.no_results_list.append({'keyword':key, 'hits': '0','text': 'No results for this query.'})
 					else:
-						self.no_results_list.append({key:no_results})
-					#print(f'{key}: {no_results}')
+						p = re.compile(r'\s(\d+.\d+)+')
+						no_results_number = p.search(no_results).group()
+						removed_space = no_results_number.replace('\xa0', '')
+						self.no_results_list.append({'keyword': key, 'hits':removed_space, 'text': no_results})
 			for div in soup.find_all('div', class_='yuRUbf'):
 				link = div.select('a', href=True)
-				links_list.append(link[0]['href'])
-				#print(links_list)				
-
+				if link not in links_list:
+					links_list.append(link[0]['href'])
+				else:
+					continue			
+			time.sleep(delay)
 		key_dict = {key:links_list}
 		self.dict_list.append(key_dict)
-		#print(dict_list)
+		
 
-	def main(self, pages):
+	def main(self, pages, delay):
 		self.open_keywords()
 		for key in self.keywords:
-			self.get_data(key, pages)
+			self.get_data(key, pages, delay)
 		self.no_results_csv(self.no_results_list)
 		self.links_csv(self.dict_list)
 
 run = googleScrape(dict_list, no_results_list) 
 
 if __name__ == '__main__':
-	run.main(pages_to_scrape)
+	run.main(pages_to_scrape, delay)

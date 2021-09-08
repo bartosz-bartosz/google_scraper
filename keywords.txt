@@ -1,7 +1,6 @@
 screamingfrog
 google
-python
-scrape
 altavista
-space bar
+python
 źdźbło
+space bar
