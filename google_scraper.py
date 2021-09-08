@@ -10,11 +10,14 @@ from requests_html import HTMLSession
 
 keywords = []
 dict_list = []
+no_results_list = []
 
 class googleScrape:
-	def __init__(self, dict_list):
-		self.dict_list = dict_list
-		self.keywords = keywords
+	def __init__(self, dict_list, no_results_list):
+		self.dict_list = []
+		self.keywords = []
+		self.no_results_list = []
+
 
 	def open_keywords(self):
 		with open('keywords.txt', 'r', encoding='utf8') as file:
@@ -33,31 +36,57 @@ class googleScrape:
 		soup = BeautifulSoup(response.text, 'html.parser')
 		return soup
 
+	def no_results_csv(self, no_results_list):
+		print('Number of results for all keywords:')
+		print(no_results_list)
+		no_results_file = 'no_results.csv'
+		with open(no_results_file, 'w', newline='') as resultsfile:
+			writer = csv.writer(resultsfile)
+			for dic in no_results_list:
+				writer.writerows(dic.items())
+
+
 	def get_data(self, key, pages):
+		links_list = []
 		for page in range(pages):
-			page += 1
+			page = str(page) + '0'
 			self.URL = f"https://google.com/search?q=site:https://www.searchenginejournal.com/+{key}&start={page}"
+			print(self.URL)
 			soup = self.make_soup(self.URL)
-			links_list = []	
+			for div in soup.find_all('div', class_='LHJvCe'):
+				#print(type(div.text))
+				if int(page) > 0:
+					continue
+				else:
+					no_results = div.text
+					self.no_results_list.append({key:no_results})
+					print(f'{key}: {no_results}')
+					print('\n')
 			for div in soup.find_all('div', class_='yuRUbf'):
 				link = div.select('a', href=True)
 				#print(link[0]['href'])
 				links_list.append(link[0]['href'])
-			key_dict = {key:links_list}
-			dict_list.append(key_dict)
-			print(dict_list)
-				
-			for div in soup.find_all('div', class_='LHJvCe'):
-				#print(type(div.text))
-				print(f'{key}: {div.text}')
+				print(links_list)
+			# for link in links_list:
+			# 	# link_index = str(links_list.index(link)+1)	
+			# 	links_list.append(link)
+			# 	key_dict = {key:link}
+			# 	dict_list.append(key_dict)
+					
 
-	def main(self):
+		key_dict = {key:links_list}
+		dict_list.append(key_dict)
+		# return self.no_results_csv(self.no_results_list)
+		print(dict_list)
+
+
+	def main(self, pages):
 		self.open_keywords()
-		pages = 2
 		for key in self.keywords:
 			self.get_data(key, pages)
+		self.no_results_csv(self.no_results_list)
 
-run = googleScrape(dict_list) 
+run = googleScrape(dict_list, no_results_list) 
 
 if __name__ == '__main__':
-	run.main()
+	run.main(2)
