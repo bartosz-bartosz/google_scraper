@@ -8,9 +8,10 @@ import unicodedata
 from bs4 import BeautifulSoup
 from requests_html import HTMLSession
 
-pages_to_scrape = 7
-delay = 0
+pages_to_scrape = 7 # How many result pages will be scraped
+delay = 0 # How many seconds the program will wait before scraping next page (too fast scraping can lead to bad response from Google page)
 
+'''Main program class'''
 class googleScrape:
 	def __init__(self):
 		self.dict_list = []
@@ -120,5 +121,6 @@ class googleScrape:
 '''Create instance of a program'''
 run = googleScrape() 
 
+'''Run'''
 if __name__ == '__main__':
 	run.main(pages_to_scrape, delay)
