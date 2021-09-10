@@ -1,3 +1,4 @@
+import argparse
 import requests
 import urllib
 import re
@@ -7,56 +8,57 @@ import unicodedata
 from bs4 import BeautifulSoup
 from requests_html import HTMLSession
 
-keywords = []
-dict_list = []
-no_results_list = []
-pages_to_scrape = 5
+pages_to_scrape = 7
 delay = 0
 
 class googleScrape:
-	def __init__(self, dict_list, no_results_list):
+	def __init__(self):
 		self.dict_list = []
 		self.keywords = []
-		self.no_results_list = []
+		self.total_results_list = []
 
+	''' Open keywords.txt file, replace spaces with "+" for search purposes and store keywords in a list'''
 	def open_keywords(self):
 		with open('keywords.txt', 'r', encoding='utf8') as file:
 			self.keywords = file.read().splitlines()
 			self.keywords = [k.replace(' ', '+') for k in self.keywords]
 		return self.keywords
 
+	'''Reach a single page, check for response. If response is OK - return it and continue. Otherwise, save already collected data and close the program. '''
 	def get_html(self, link):
-		response = HTMLSession().get(link)
-		print(response)
-		if response.status_code == 200:
+		self.response = HTMLSession().get(link)
+		print(self.response)
+		if self.response.status_code == 200:
 			print('Response OK, data reached successfully.\n')
-			return response
+			return self.response
 		else:
 			print("\nToo many tries. Saving data collected until now.\nTry again in a few minutes.If problem persists, set higher delay.\n")
-			if len(self.no_results_list) < 1:
+			if len(self.total_results_list) < 1:
 				print('\nNo data to save.')
 				exit()
 			else:
-				self.no_results_csv(self.no_results_list)
+				self.total_results_csv(self.total_results_list)
 				self.links_csv(self.dict_list)
 				exit()
- 
+
+	'''Use BeautifulSoup module to transform the response from get_html() method into an iterable HTML'''
 	def make_soup(self, url):
-		response = self.get_html(self.URL)
-		soup = BeautifulSoup(response.text, 'html.parser')
+		self.response = self.get_html(self.URL)
+		soup = BeautifulSoup(self.response.text, 'html.parser')
 		return soup
 
-	def no_results_csv(self, no_results_list):
+	'''Save CSV file with total number of results for each keyword'''
+	def total_results_csv(self, total_results_list):
 		print('\n')
-		print(type(no_results_list[0]))
-		no_results_file = 'no_results.csv'
-		with open(no_results_file, 'w', newline='') as resultsfile:
-			writer = csv.DictWriter(resultsfile, no_results_list[0].keys())
+		total_results_file = 'total_results.csv'
+		with open(total_results_file, 'w', newline='') as resultsfile:
+			writer = csv.DictWriter(resultsfile, total_results_list[0].keys())
 			writer.writeheader()
-			writer.writerows(no_results_list)
+			writer.writerows(total_results_list)
 
-		print(f'Number of results for each keyword saved to {no_results_file}')
+		print(f'Number of results for each keyword saved to {total_results_file}')
 
+	'''Save CSV file with all links with corresponding keyword'''
 	def links_csv(self, dict_list):
 		csv_file ='output_links.csv'
 		headers = ['keyword','link']
@@ -69,6 +71,10 @@ class googleScrape:
 						writer.writerow([key, item])
 		print(f'Links saved to {csv_file}')
 
+	'''Take keyword, create link in range of pages_to_scrape. Create URL for each page and pass it to make_soup() method. 
+	Find total number of results and all links, save that data to lists of dictionaries and pass them to methods which create CSV files.
+	If no results are found, put that information instead. If link already appears in results for the same keyword, ignore it.
+	After scraping every page wait for time specified in "delay" variable.'''
 	def get_data(self, key, pages, delay):
 		links_list = []
 		print('\n')
@@ -82,14 +88,14 @@ class googleScrape:
 				if int(page) > 0:
 					continue
 				else:
-					no_results = div.text
-					if no_results == '':
-						self.no_results_list.append({'keyword':key, 'hits': '0','text': 'No results for this query.'})
+					total_results = div.text
+					if total_results == '':
+						self.total_results_list.append({'keyword':key, 'hits': '0','text': 'No results for this query.'})
 					else:
 						p = re.compile(r'\s(\d+.\d+)+')
-						no_results_number = p.search(no_results).group()
-						removed_space = no_results_number.replace('\xa0', '')
-						self.no_results_list.append({'keyword': key, 'hits':removed_space, 'text': no_results})
+						total_results_number = p.search(total_results).group()
+						removed_space = total_results_number.replace('\xa0', '')
+						self.total_results_list.append({'keyword': key, 'hits':removed_space, 'text': total_results})
 			for div in soup.find_all('div', class_='yuRUbf'):
 				link = div.select('a', href=True)
 				if link not in links_list:
@@ -100,15 +106,19 @@ class googleScrape:
 		key_dict = {key:links_list}
 		self.dict_list.append(key_dict)
 		
-
+	'''Main method. Read keywords, then iterate through them in get_data() method.'''
 	def main(self, pages, delay):
 		self.open_keywords()
 		for key in self.keywords:
 			self.get_data(key, pages, delay)
-		self.no_results_csv(self.no_results_list)
-		self.links_csv(self.dict_list)
+		if self.response.status_code == 200:
+			self.total_results_csv(self.total_results_list)
+			self.links_csv(self.dict_list)
+		else:
+			exit()
 
-run = googleScrape(dict_list, no_results_list) 
+'''Create instance of a program'''
+run = googleScrape() 
 
 if __name__ == '__main__':
 	run.main(pages_to_scrape, delay)
