@@ -13,4 +13,5 @@ To be improved:
 Risks & Limitations:
 - Google doesn't really like being scraped
 - Legality of scraping data from Google should be reviewed
-- It would be hard to scrape that data on a large scale
+- It would be hard to scrape that data on a large scale this way
+
